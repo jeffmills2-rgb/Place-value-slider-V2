@@ -341,6 +341,24 @@
       color: #222;
     }
 
+    /* Equivalence hint row */
+
+    .equivalence-row {
+      margin-top: 10px;
+    }
+
+    #equivalenceBox {
+      width: 100%;
+      min-height: 32px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px dashed #e1c8ff;
+      background: #faf5ff;
+      font-size: 1rem;
+      color: #4b2c7a;
+      font-style: italic;
+    }
+
     /* Bottom controls / practice button */
 
     .bottom-controls {
@@ -651,6 +669,11 @@
         <div id="expressionBox" class="hidden" aria-live="polite"></div>
       </div>
 
+      <!-- Equivalence hint -->
+      <div class="equivalence-row">
+        <div id="equivalenceBox" class="hidden" aria-live="polite"></div>
+      </div>
+
       <div class="bottom-controls">
         <button id="mysteryBtn" type="button">Practice lab</button>
       </div>
@@ -784,6 +807,7 @@
     const topRow         = document.querySelector(".top-row");
     const wordsRow       = document.querySelector(".words-row");
     const expressionRow  = document.querySelector(".expression-row");
+    const equivalenceRow = document.querySelector(".equivalence-row");
 
     const timesTenBtn       = document.getElementById("timesTenBtn");
     const divideTenBtn      = document.getElementById("divideTenBtn");
@@ -795,6 +819,7 @@
     const wordsBtn          = document.getElementById("wordsBtn");
     const wordsBox          = document.getElementById("wordsBox");
     const expressionBox     = document.getElementById("expressionBox");
+    const equivalenceBox    = document.getElementById("equivalenceBox");
 
     const mysteryBtn        = document.getElementById("mysteryBtn");
     const mysteryPanel      = document.getElementById("mysteryPanel");
@@ -963,32 +988,29 @@
       return fracPart ? `${intPart}.${fracPart}` : intPart;
     }
 
+    // Always keep trailing zeros for tenths → millionths in the grid
     function getDigitInfoForGrid(value) {
-  // Always represent the number with MAX_RIGHT_DIGITS fixed decimal places
-  // so zeros appear in tenths → millionths for sliding animations.
-  let s = value.toFixed(MAX_RIGHT_DIGITS); // e.g. 3.02 → "3.020000"
+      // e.g. 3.02 → "3.020000"
+      let s = value.toFixed(MAX_RIGHT_DIGITS);
 
-  // Ensure decimal exists (toFixed should guarantee)
-  if (!s.includes(".")) s += ".";
+      if (!s.includes(".")) s += ".";
 
-  let [intPart, fracPart] = s.split(".");
+      let [intPart, fracPart] = s.split(".");
 
-  // Remove leading zeros on integer (but leave 1 if all zeros)
-  intPart = intPart.replace(/^0+/, "") || "0";
+      intPart = intPart.replace(/^0+/, "") || "0";
 
-  // Ensure EXACT length on fractional part
-  if (!fracPart) fracPart = "";
-  if (fracPart.length < MAX_RIGHT_DIGITS) {
-    fracPart = fracPart.padEnd(MAX_RIGHT_DIGITS, "0");
-  } else if (fracPart.length > MAX_RIGHT_DIGITS) {
-    fracPart = fracPart.slice(0, MAX_RIGHT_DIGITS);
-  }
+      if (!fracPart) fracPart = "";
+      if (fracPart.length < MAX_RIGHT_DIGITS) {
+        fracPart = fracPart.padEnd(MAX_RIGHT_DIGITS, "0");
+      } else if (fracPart.length > MAX_RIGHT_DIGITS) {
+        fracPart = fracPart.slice(0, MAX_RIGHT_DIGITS);
+      }
 
-  return {
-    leftDigits: intPart.split(""),
-    rightDigits: fracPart.split("") // always full zeros beyond needed digits
-  };
-}
+      return {
+        leftDigits: intPart.split(""),
+        rightDigits: fracPart.split("")
+      };
+    }
 
     function isInPlaceValueRange(value) {
       if (value >= MAX_INT_VALUE) return false;
@@ -1146,6 +1168,17 @@
       return groupWithSpaces(raw);
     }
 
+    function decimalFromExponent(n) {
+      const k = Math.abs(n);
+      if (k === 0) return "1";
+      return "0." + "0".repeat(k - 1) + "1";
+    }
+
+    function hideEquivalenceBox() {
+      equivalenceBox.textContent = "";
+      equivalenceBox.classList.add("hidden");
+    }
+
     function inferExponentFromValues() {
       if (originalValue == null || currentValue == null) return 0;
 
@@ -1160,16 +1193,57 @@
       return relErr < 1e-10 ? nApprox : 0;
     }
 
+    function updateEquivalenceBox() {
+      if (mysteryMode) {
+        hideEquivalenceBox();
+        return;
+      }
+
+      if (originalValue == null || currentValue == null) {
+        hideEquivalenceBox();
+        return;
+      }
+
+      const n = inferExponentFromValues();
+      if (n === 0) {
+        hideEquivalenceBox();
+        return;
+      }
+
+      const inRangeOrig = isInPlaceValueRange(originalValue);
+      const inRangeCurr = isInPlaceValueRange(currentValue);
+      if (!inRangeOrig || !inRangeCurr) {
+        hideEquivalenceBox();
+        return;
+      }
+
+      const decStr  = decimalFromExponent(n);
+      const origStr = formatStandard(originalValue, { forGrid: true, withSpaces: false });
+      const currStr = formatStandard(currentValue, { forGrid: true, withSpaces: false });
+
+      let equation;
+      if (n > 0) {
+        equation = `${origStr} ÷ ${decStr} = ${currStr}`;
+      } else {
+        equation = `${origStr} × ${decStr} = ${currStr}`;
+      }
+
+      equivalenceBox.textContent = `Did you know ${equation}`;
+      equivalenceBox.classList.remove("hidden");
+    }
+
     function updateExpressionBox() {
       if (mysteryMode) {
         expressionBox.innerHTML = "";
         expressionBox.classList.add("hidden");
+        hideEquivalenceBox();
         return;
       }
 
       if (originalValue == null || currentValue == null) {
         expressionBox.innerHTML = "";
         expressionBox.classList.add("hidden");
+        hideEquivalenceBox();
         return;
       }
 
@@ -1206,6 +1280,8 @@
 
       expressionBox.innerHTML = `${origStr} ${opText} = ${currStr}`;
       expressionBox.classList.remove("hidden");
+
+      updateEquivalenceBox();
     }
 
     /* ---------- input / update ---------- */
@@ -1246,18 +1322,23 @@
         originalValue = value;
       }
 
+      // While user is typing, do NOT reformat the input box
+      // (so 9.03 stays as typed), but still update the views.
       if (isInPlaceValueRange(value)) {
-        // While the user is typing, don't overwrite what they typed
-        // (so entries like 9.03, 3.02 etc. are preserved).
-        if (!isUserTyping) {
-          inputEl.value = formatStandard(value, { forGrid: true, withSpaces: true });
-        }
         renderPlaceValueGrid(value);
       } else {
-        // For values outside the grid range, we still force scientific notation
         const sci = toScientific(value);
-        inputEl.value = sciToText(sci);
+        if (!isUserTyping) {
+          inputEl.value = sciToText(sci);
+        }
         renderScientificView(value);
+      }
+
+      if (!isUserTyping) {
+        // After buttons / reset etc, normalise the display
+        if (isInPlaceValueRange(value)) {
+          inputEl.value = formatStandard(value, { forGrid: true, withSpaces: true });
+        }
       }
 
       toggleButtons(true);
@@ -1571,7 +1652,6 @@
       modeCreateBtn.setAttribute("aria-pressed", !isPlay ? "true" : "false");
 
       if (!isPlay) {
-        // In create mode: hide/blank the place-value area
         placeValueView.innerHTML = "";
         placeValueView.classList.add("hidden");
       }
@@ -1592,6 +1672,7 @@
       wordsBox.textContent = "";
       expressionBox.classList.add("hidden");
       expressionBox.innerHTML = "";
+      hideEquivalenceBox();
       mysteryBtn.classList.add("hidden");
       mysteryPanel.classList.remove("hidden");
       clearError();
@@ -1602,6 +1683,7 @@
       topRow.classList.add("hidden");
       wordsRow.classList.add("hidden");
       expressionRow.classList.add("hidden");
+      if (equivalenceRow) equivalenceRow.classList.add("hidden");
 
       // Initial view: heading + mode only
       setMysterySubMode("play");
@@ -1660,6 +1742,7 @@
       topRow.classList.remove("hidden");
       wordsRow.classList.remove("hidden");
       expressionRow.classList.remove("hidden");
+      if (equivalenceRow) equivalenceRow.classList.remove("hidden");
     }
 
     function startNewMystery() {
@@ -1668,7 +1751,6 @@
       mysteryFinal    = state.final;
       mysteryOps      = state.operations;
 
-      // Show starting number on the grid
       currentValue  = mysteryOriginal;
       originalValue = mysteryOriginal;
 
@@ -1679,7 +1761,6 @@
         renderScientificView(mysteryOriginal);
       }
 
-      // Display starting number in the text
       mysteryFinalValue.textContent = formatStandard(mysteryOriginal, {
         forGrid: true,
         withSpaces: true
@@ -1730,7 +1811,6 @@
       mysteryFeedback.className = "ok";
       launchConfetti();
 
-      // Reset grid to starting number, then animate to final
       currentValue  = mysteryOriginal;
       originalValue = mysteryOriginal;
 
@@ -1850,22 +1930,17 @@
         return;
       }
 
-      // Success: show original in grid and animate operations to final number
       createMysteryFeedback.textContent = "Well done!";
       createMysteryFeedback.className = "ok";
 
       const origVal = normalizeValue(origParsed.value);
-      const finalVal = normalizeValue(finalParsed.value);
-
       currentValue  = origVal;
       originalValue = origVal;
 
       renderPlaceValueGrid(origVal);
 
       function playCreateStep(index) {
-        if (index >= createOps.length) {
-          return;
-        }
+        if (index >= createOps.length) return;
         const op = createOps[index];
         applyPowerOfTen(op.steps, op.mult, () => playCreateStep(index + 1));
       }
