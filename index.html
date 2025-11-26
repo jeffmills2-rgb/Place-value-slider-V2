@@ -964,23 +964,31 @@
     }
 
     function getDigitInfoForGrid(value) {
-      let s;
-      const abs = Math.abs(value);
-      if (abs >= MIN_POS_VALUE && abs < MAX_INT_VALUE) {
-        s = value.toFixed(MAX_RIGHT_DIGITS);
-        s = s.replace(/\.?0+$/, "");
-      } else {
-        s = value.toString();
-      }
-      if (!s.includes(".")) s += ".";
-      let [intPart, fracPart] = s.split(".");
-      intPart = intPart.replace(/^0+/, "") || "0";
-      fracPart = (fracPart || "").replace(/0+$/, "");
-      return {
-        leftDigits: intPart.split(""),
-        rightDigits: fracPart.split("")
-      };
-    }
+  // Always represent the number with MAX_RIGHT_DIGITS fixed decimal places
+  // so zeros appear in tenths → millionths for sliding animations.
+  let s = value.toFixed(MAX_RIGHT_DIGITS); // e.g. 3.02 → "3.020000"
+
+  // Ensure decimal exists (toFixed should guarantee)
+  if (!s.includes(".")) s += ".";
+
+  let [intPart, fracPart] = s.split(".");
+
+  // Remove leading zeros on integer (but leave 1 if all zeros)
+  intPart = intPart.replace(/^0+/, "") || "0";
+
+  // Ensure EXACT length on fractional part
+  if (!fracPart) fracPart = "";
+  if (fracPart.length < MAX_RIGHT_DIGITS) {
+    fracPart = fracPart.padEnd(MAX_RIGHT_DIGITS, "0");
+  } else if (fracPart.length > MAX_RIGHT_DIGITS) {
+    fracPart = fracPart.slice(0, MAX_RIGHT_DIGITS);
+  }
+
+  return {
+    leftDigits: intPart.split(""),
+    rightDigits: fracPart.split("") // always full zeros beyond needed digits
+  };
+}
 
     function isInPlaceValueRange(value) {
       if (value >= MAX_INT_VALUE) return false;
@@ -1239,9 +1247,14 @@
       }
 
       if (isInPlaceValueRange(value)) {
-        inputEl.value = formatStandard(value, { forGrid: true, withSpaces: true });
+        // While the user is typing, don't overwrite what they typed
+        // (so entries like 9.03, 3.02 etc. are preserved).
+        if (!isUserTyping) {
+          inputEl.value = formatStandard(value, { forGrid: true, withSpaces: true });
+        }
         renderPlaceValueGrid(value);
       } else {
+        // For values outside the grid range, we still force scientific notation
         const sci = toScientific(value);
         inputEl.value = sciToText(sci);
         renderScientificView(value);
