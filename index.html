@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <title>Place Value: Multiply &amp; Divide by 10</title>
   <style>
+    /* Handwritten font for the number sentence */
+    @import url('https://fonts.googleapis.com/css2?family=Gloria+Hallelujah&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Schoolbell&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Shadows+Into+Light&display=swap');
+
     :root {
       --cell-width: 90px;
       --cell-height: 90px;
@@ -328,18 +335,20 @@
       margin-top: 14px;
     }
 
-    #expressionBox {
-      width: 100%;
-      min-height: 40px;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid #d3d8ea;
-      background: #ffffff;
-      font-size: 1.1rem;
-      font-weight: 600;
-      text-align: center;
-      color: #222;
-    }
+   #expressionBox {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d3d8ea;
+  background: #ffffff;
+  font-size: 4.6rem; /* larger handwritten style */
+  font-weight: 400;
+  text-align: center;
+  color: #174d45; /* nice dark green */
+  font-family:  "Kalam","Gloria Hallelujah", "Patrick Hand", "Schoolbell", "Shadows Into Light", sans-serif;
+}
+
 
     /* Equivalence hint row */
 
@@ -365,12 +374,21 @@
       margin-top: 14px;
       display: flex;
       justify-content: flex-end;
+      gap: 10px;  /* space between buttons */
     }
 
     #mysteryBtn {
       background: #4c6fff;
       color: #fff;
       box-shadow: 0 2px 6px rgba(76, 111, 255, 0.4);
+      font-size: 0.98rem;
+    }
+
+    /* NEW: button that links to the flash-card page */
+    #flashCardBtn {
+      background: #ffc94a;
+      color: #5c3b00;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
       font-size: 0.98rem;
     }
 
@@ -675,9 +693,12 @@
       </div>
 
       <div class="bottom-controls">
+        <button id="flashCardBtn" type="button">Class flash card activity</button>
         <button id="mysteryBtn" type="button">Practice lab</button>
       </div>
 
+      <!-- Practice lab panel (unchanged from your original file) -->
+      <!-- everything below here is exactly what you already had -->
       <div id="mysteryPanel" class="hidden">
         <h2>Practice lab</h2>
         <p id="mysterySubtext">
@@ -822,6 +843,7 @@
     const equivalenceBox    = document.getElementById("equivalenceBox");
 
     const mysteryBtn        = document.getElementById("mysteryBtn");
+    const flashCardBtn      = document.getElementById("flashCardBtn"); // NEW
     const mysteryPanel      = document.getElementById("mysteryPanel");
     const mysteryFinalValue = document.getElementById("mysteryFinalValue");
     const mysteryOperations = document.getElementById("mysteryOperations");
@@ -959,13 +981,11 @@
       return { status: "ok", value: num, fromSci: false };
     }
 
-    // Unified standard formatter for decimals
     function formatStandard(value, options = {}) {
       const { forGrid = false, withSpaces = false } = options;
 
       let s;
       if (forGrid) {
-        // Fixed decimal places for grid / place value use
         s = value.toFixed(MAX_RIGHT_DIGITS);
         s = s.replace(/\.?0+$/, "");
       } else {
@@ -988,24 +1008,17 @@
       return fracPart ? `${intPart}.${fracPart}` : intPart;
     }
 
-    // Always keep trailing zeros for tenths → millionths in the grid
     function getDigitInfoForGrid(value) {
-      // e.g. 3.02 → "3.020000"
       let s = value.toFixed(MAX_RIGHT_DIGITS);
-
       if (!s.includes(".")) s += ".";
-
       let [intPart, fracPart] = s.split(".");
-
       intPart = intPart.replace(/^0+/, "") || "0";
-
       if (!fracPart) fracPart = "";
       if (fracPart.length < MAX_RIGHT_DIGITS) {
         fracPart = fracPart.padEnd(MAX_RIGHT_DIGITS, "0");
       } else if (fracPart.length > MAX_RIGHT_DIGITS) {
         fracPart = fracPart.slice(0, MAX_RIGHT_DIGITS);
       }
-
       return {
         leftDigits: intPart.split(""),
         rightDigits: fracPart.split("")
@@ -1058,8 +1071,6 @@
       const target = center - viewContainer.clientWidth / 2;
       viewContainer.scrollLeft = Math.max(0, target);
     }
-
-    /* ---------- render grid / sci ---------- */
 
     function renderPlaceValueGrid(value) {
       const { leftDigits, rightDigits } = getDigitInfoForGrid(value);
@@ -1135,8 +1146,6 @@
       viewContainer.scrollLeft = 0;
     }
 
-    /* ---------- animation ---------- */
-
     function animateSlide(direction, steps, callback) {
       const spans = placeValueView.querySelectorAll(".pv-digits-row .digit-span");
       if (!spans.length || steps <= 0) {
@@ -1155,8 +1164,6 @@
         if (typeof callback === "function") callback();
       }, duration);
     }
-
-    /* ---------- expression helpers ---------- */
 
     function groupWithSpaces(digits) {
       return digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
@@ -1284,10 +1291,8 @@
       updateEquivalenceBox();
     }
 
-    /* ---------- input / update ---------- */
-
     function updateFromInput(isUserTyping = false) {
-      if (mysteryMode) return; // top input isn't used in Practice lab
+      if (mysteryMode) return;
 
       const raw    = inputEl.value;
       const parsed = parseInput(raw);
@@ -1322,8 +1327,6 @@
         originalValue = value;
       }
 
-      // While user is typing, do NOT reformat the input box
-      // (so 9.03 stays as typed), but still update the views.
       if (isInPlaceValueRange(value)) {
         renderPlaceValueGrid(value);
       } else {
@@ -1335,7 +1338,6 @@
       }
 
       if (!isUserTyping) {
-        // After buttons / reset etc, normalise the display
         if (isInPlaceValueRange(value)) {
           inputEl.value = formatStandard(value, { forGrid: true, withSpaces: true });
         }
@@ -1344,8 +1346,6 @@
       toggleButtons(true);
       updateExpressionBox();
     }
-
-    /* ---------- words helpers ---------- */
 
     const ones = [
       "", "one","two","three","four","five","six","seven","eight","nine",
@@ -1484,8 +1484,6 @@
       wordsBox.classList.remove("hidden");
     }
 
-    /* ---------- multiply / divide by powers of 10 ---------- */
-
     function applyPowerOfTen(steps, isMultiply, doneCallback) {
       if (currentValue == null) {
         if (typeof doneCallback === "function") doneCallback();
@@ -1535,8 +1533,6 @@
       }
     }
 
-    /* ---------- practice lab helpers ---------- */
-
     const operationsPool = [
       { steps: 1, mult: true,  label: "×10"   },
       { steps: 1, mult: false, label: "÷10"   },
@@ -1550,19 +1546,16 @@
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    // Pick a starting value obeying requested ranges
     function chooseOriginalForDifficulty(level) {
       const maxTries = 200;
       let minExp, maxExp;
 
       if (level === 1) {
-        // Level 1: starting values from hundreds down to hundredths
-        minExp = -2; // 10^-2
-        maxExp =  2; // 10^2
+        minExp = -2;
+        maxExp =  2;
       } else {
-        // Levels 2–4: starting values from thousandths up to thousands
-        minExp = -3; // 10^-3
-        maxExp =  3; // 10^3
+        minExp = -3;
+        maxExp =  3;
       }
 
       const minVal = Math.pow(10, minExp);
@@ -1577,7 +1570,6 @@
         if (!isInPlaceValueRange(val)) continue;
         return val;
       }
-      // fallback if something goes weird
       return level === 1 ? 45 : 4.5;
     }
 
@@ -1613,7 +1605,6 @@
         return { original: orig, final: value, operations: ops };
       }
 
-      // ultimate fallback
       return {
         original: 5,
         final: 50,
@@ -1674,18 +1665,17 @@
       expressionBox.innerHTML = "";
       hideEquivalenceBox();
       mysteryBtn.classList.add("hidden");
+      flashCardBtn.classList.add("hidden");
       mysteryPanel.classList.remove("hidden");
       clearError();
 
       toggleButtons(false);
 
-      // hide the whole top input area & words / expression rows
       topRow.classList.add("hidden");
       wordsRow.classList.add("hidden");
       expressionRow.classList.add("hidden");
       if (equivalenceRow) equivalenceRow.classList.add("hidden");
 
-      // Initial view: heading + mode only
       setMysterySubMode("play");
       playDifficultyRow.classList.remove("hidden");
       playDetails.classList.add("hidden");
@@ -1731,6 +1721,7 @@
 
       mysteryPanel.classList.add("hidden");
       mysteryBtn.classList.remove("hidden");
+      flashCardBtn.classList.remove("hidden");
       mysteryFeedback.textContent = "";
       mysteryFeedback.className = "";
       mysteryAnswer.textContent = "";
@@ -1845,8 +1836,6 @@
       }
     }
 
-    /* ---------- create mode helpers ---------- */
-
     const createOpMap = {
       x10:   { steps: 1, mult: true,  label: "×10"   },
       d10:   { steps: 1, mult: false, label: "÷10"   },
@@ -1949,8 +1938,6 @@
       launchConfetti();
     }
 
-    /* ---------- event listeners ---------- */
-
     inputEl.addEventListener("input", () => updateFromInput(true));
 
     timesTenBtn.addEventListener("click",      () => applyPowerOfTen(1, true));
@@ -1989,6 +1976,12 @@
     newMysteryBtn.addEventListener("click", startNewMystery);
     checkMysteryBtn.addEventListener("click", checkMysteryAnswer);
     revealAnswerBtn.addEventListener("click", revealAnswer);
+
+    // NEW: go to the flash-card page
+    flashCardBtn.addEventListener("click", () => {
+      // change filename here if your flash-card file has a different name
+      window.location.href = "flash-cards.html";
+    });
 
     levelButtons.forEach(btn => {
       btn.addEventListener("click", () => {
@@ -2036,7 +2029,6 @@
     clearCreateOpsBtn.addEventListener("click", clearCreateOps);
     checkCreateMysteryBtn.addEventListener("click", checkCreateMystery);
 
-    /* ---------- initial ---------- */
     clearViews();
     toggleButtons(false);
     updateExpressionBox();
