@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <title>Class Flash Card Activity</title>
-  <!-- Handwritten-style font -->
+
+  <!-- Handwritten-style fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Schoolbell&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Gloria+Hallelujah&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light&display=swap" rel="stylesheet" />
 
   <style>
     :root {
@@ -88,20 +94,23 @@
     }
 
     .mode-button {
-      border: none;
+      border: 1px solid rgba(36, 59, 128, 0.3);
       border-radius: 999px;
-      padding: 6px 14px;
+      padding: 6px 16px;
       font-size: 0.95rem;
       cursor: pointer;
       background: #e0e7ff;
       color: #243b80;
       font-weight: 600;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      white-space: nowrap;
     }
 
     .mode-button.active {
       background: var(--accent-blue);
-      color: #fff;
+      border-color: var(--accent-blue);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     }
 
     /* ---------- Card ---------- */
@@ -131,27 +140,28 @@
 
     .question-text,
     .answer-text {
-      font-family: "Caveat", "Comic Sans MS", "Segoe UI", system-ui, sans-serif;
+      font-family: "Patrick Hand", "Kalam", "Schoolbell", "Caveat", "Comic Sans MS", "Segoe UI", system-ui, sans-serif;
       text-align: center;
       line-height: 1.1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .question-text {
-      font-size: clamp(3rem, 5.2vw, 5.6rem);
+      white-space: normal;
+      word-break: break-word;
+      font-size: clamp(6.7rem, 11vw, 12rem);
       margin-bottom: 36px;
     }
 
     .answer-text {
-      font-size: clamp(3rem, 4.2vw, 4.8rem);
-      color: var(--accent-green);
+      white-space: normal;
+      word-break: break-word;
+      font-size: clamp(7.8rem, 12vw, 13.2rem);
+      color: var(--accent-green) !important;
     }
 
     /* Hand-drawn “write on” animation */
     .question-text.drawn {
-      animation: handwriting 0.9s ease-out;
+      animation: handwriting 0.4s ease-out;
     }
 
     @keyframes handwriting {
@@ -185,6 +195,9 @@
       justify-content: center;
       box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
       transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.1s ease;
+      min-width: 220px; /* ensures “(Space)” text never gets clipped */
+      color: #222;
+      background: #ffffff;
     }
 
     .control-button:active {
@@ -194,7 +207,7 @@
 
     #newProblemBtn {
       background: var(--accent-blue);
-      color: #fff;
+      color: #ffffff;
     }
 
     #revealBtn {
@@ -223,7 +236,6 @@
   <main class="app">
     <header class="top-bar">
       <div class="top-left">
-        <!-- Back to main place-value tool -->
         <button class="back-btn" type="button" onclick="window.location.href='index.html';">
           ← Back
         </button>
@@ -242,7 +254,7 @@
     <section class="card-container">
       <div class="flash-card">
         <div id="questionText" class="question-text">
-          Click “New problem” to begin
+          Press space begin
         </div>
         <div id="answerText" class="answer-text hidden">
           0
@@ -275,13 +287,10 @@
 
     // Format number so we don't lose digits like 301.23 / 1000 -> 0.30123
     function formatNumber(value) {
-      let s = value.toString();
-
-      // If JS uses exponential notation, expand it
-      if (s.includes("e") || s.includes("E")) {
-        s = value.toFixed(15).replace(/0+$/, "").replace(/\.$/, "");
-      }
-
+      const rounded = Math.round(value * 1e8) / 1e8; // kill floating-point noise
+      let s = rounded.toFixed(8);
+      s = s.replace(/0+$/, "").replace(/\.$/, "");
+      if (s === "-0") s = "0";
       return s;
     }
 
@@ -316,15 +325,9 @@
       const factor = chooseFactorForMode();
       const isMultiply = Math.random() < 0.5;
       const start = randomStartNumber();
-
       const result = isMultiply ? start * factor : start / factor;
 
-      return {
-        start,
-        factor,
-        isMultiply,
-        result
-      };
+      return { start, factor, isMultiply, result };
     }
 
     function displayProblem() {
@@ -345,14 +348,12 @@
         // e.g. ? × 10 = 430
         const question = `? ${op} ${factor} = ${resultStr}`;
         const answer = startStr;
-
         questionEl.textContent = question;
         answerEl.textContent = answer;
       } else {
         // Normal: show start op factor = ? and answer is result
         const question = `${startStr} ${op} ${factor} = ?`;
         const answer = resultStr;
-
         questionEl.textContent = question;
         answerEl.textContent = answer;
       }
