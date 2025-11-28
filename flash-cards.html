@@ -21,6 +21,9 @@
       --accent-green: #1b8a5a;
       --accent-grey: #e0e4f2;
       --text-main: #222;
+
+      --pv-cell-width: 70px;
+      --pv-cell-height: 90px;
     }
 
     * {
@@ -113,6 +116,78 @@
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     }
 
+    /* ---------- Mini place value slider ---------- */
+
+    .pv-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .pv-slider-mini {
+      position: relative;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      padding: 6px 10px 14px;
+      transform: scale(0.7);
+      transform-origin: top center;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .pv-cell-row {
+      display: flex;
+    }
+
+    .pv-cell,
+    .pv-dot-cell {
+      width: var(--pv-cell-width);
+      height: var(--pv-cell-height);
+      border-radius: 14px;
+      border: 1px solid #d5d9eb;
+      background: #ffffff;
+      margin-right: 4px;
+      position: relative;
+    }
+
+    .pv-dot-cell {
+      background: #f1f3ff;
+    }
+
+    .pv-dot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #4b5563;
+    }
+
+    .pv-digit-row {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: var(--pv-cell-height);
+      display: flex;
+      align-items: center;
+      width: 100%;
+      pointer-events: none;
+      transition: transform 0.35s ease-out;
+    }
+
+    .pv-digit {
+      width: var(--pv-cell-width);
+      text-align: center;
+      font-size: 3rem;
+      font-weight: 700;
+      color: #1d4ed8;
+      margin-right: 4px;          /* NEW: match cell spacing */
+
+    }
+
     /* ---------- Card ---------- */
 
     .card-container {
@@ -195,7 +270,7 @@
       justify-content: center;
       box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
       transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.1s ease;
-      min-width: 220px; /* ensures “(Space)” text never gets clipped */
+      min-width: 220px;
       color: #222;
       background: #ffffff;
     }
@@ -229,6 +304,10 @@
       .mode-buttons {
         justify-content: flex-start;
       }
+
+      .pv-slider-mini {
+        transform: scale(0.6);
+      }
     }
   </style>
 </head>
@@ -252,6 +331,11 @@
     </header>
 
     <section class="card-container">
+      <!-- Mini place value slider (visual only) -->
+      <div class="pv-wrapper">
+        <div id="pvSliderMini" class="pv-slider-mini"></div>
+      </div>
+
       <div class="flash-card">
         <div id="questionText" class="question-text">
           Press space begin
@@ -273,7 +357,137 @@
   </main>
 
   <script>
-    // ---------- State ----------
+    // ---------- Slider config ----------
+    const PV_CELL_WIDTH = 70; // must match CSS var
+    const pvConfig = [
+      { type: "cell", power: 5 },
+      { type: "cell", power: 4 },
+      { type: "cell", power: 3 },
+      { type: "cell", power: 2 },
+      { type: "cell", power: 1 },
+      { type: "cell", power: 0 },
+      { type: "dot" },
+      { type: "cell", power: -1 },
+      { type: "cell", power: -2 },
+      { type: "cell", power: -3 },
+      { type: "cell", power: -4 },
+      { type: "cell", power: -5 }
+    ];
+
+    let pvDigitRow = null;
+    let pvPowerToSlot = {};
+
+    function initPlaceValueSlider() {
+      const container = document.getElementById("pvSliderMini");
+      if (!container) return;
+
+      const cellRow = document.createElement("div");
+      cellRow.className = "pv-cell-row";
+
+      const digitRow = document.createElement("div");
+      digitRow.className = "pv-digit-row";
+
+      pvPowerToSlot = {};
+
+      pvConfig.forEach(cfg => {
+        if (cfg.type === "dot") {
+          const cell = document.createElement("div");
+          cell.className = "pv-dot-cell";
+
+          const dot = document.createElement("div");
+          dot.className = "pv-dot";
+          cell.appendChild(dot);
+
+          cellRow.appendChild(cell);
+
+          const digitSlot = document.createElement("div");
+          digitSlot.className = "pv-digit";
+          digitRow.appendChild(digitSlot);
+        } else {
+          const cell = document.createElement("div");
+          cell.className = "pv-cell";
+          cellRow.appendChild(cell);
+
+          const digitSlot = document.createElement("div");
+          digitSlot.className = "pv-digit";
+          digitSlot.dataset.power = cfg.power;
+          digitRow.appendChild(digitSlot);
+
+          pvPowerToSlot[cfg.power] = digitSlot;
+        }
+      });
+
+      container.appendChild(cellRow);
+      container.appendChild(digitRow);
+      pvDigitRow = digitRow;
+
+      // start with 0
+      updatePlaceValueSlider(0, false, 0);
+    }
+
+    function updatePlaceValueSlider(value, animate, exponentShift) {
+      if (!pvDigitRow) return;
+
+      const formatted = formatNumber(Math.abs(value));
+      const parts = formatted.split(".");
+      const intPart = parts[0] || "0";
+      const fracPart = parts[1] || "";
+
+      const digitsByPower = {};
+
+      // First, compute raw digits for each power
+      for (let p = 5; p >= -5; p--) {
+        let digit = "0";
+        if (p >= 0) {
+          const idxFromRight = p;
+          const pos = intPart.length - 1 - idxFromRight;
+          if (pos >= 0) digit = intPart[pos];
+        } else {
+          const idx = -p - 1;
+          if (idx < fracPart.length) digit = fracPart[idx];
+        }
+        digitsByPower[p] = digit;
+      }
+
+      // Remove leading zeros on the LEFT of the number
+      let highestNonZeroInt = null;
+      for (let p = 5; p >= 0; p--) {
+        if (digitsByPower[p] !== "0") {
+          highestNonZeroInt = p;
+          break;
+        }
+      }
+      // If all integer digits are zero, keep the ones place as 0
+      if (highestNonZeroInt === null) highestNonZeroInt = 0;
+      for (let p = 5; p > highestNonZeroInt; p--) {
+        digitsByPower[p] = "";
+      }
+
+      // Now write to the DOM
+      for (let p = 5; p >= -5; p--) {
+        const slot = pvPowerToSlot[p];
+        if (slot) {
+          slot.textContent = digitsByPower[p];
+        }
+      }
+
+      // Handle sliding animation
+      if (!animate || !exponentShift) {
+        pvDigitRow.style.transition = "none";
+        pvDigitRow.style.transform = "translateX(0px)";
+        void pvDigitRow.offsetWidth; // reflow
+        pvDigitRow.style.transition = "transform 0.35s ease-out";
+      } else {
+        const offset = PV_CELL_WIDTH * exponentShift;
+        pvDigitRow.style.transition = "none";
+        pvDigitRow.style.transform = `translateX(${offset}px)`;
+        void pvDigitRow.offsetWidth; // reflow
+        pvDigitRow.style.transition = "transform 0.35s ease-out";
+        pvDigitRow.style.transform = "translateX(0px)";
+      }
+    }
+
+    // ---------- Flash card state ----------
     let currentMode = "x10"; // x10, x100, x1000, mixed, reverse
     let currentProblem = null; // { start, factor, isMultiply, result }
 
@@ -345,7 +559,6 @@
 
       if (currentMode === "reverse") {
         // Reverse challenge: show the answer expression, hide the starting number
-        // e.g. ? × 10 = 430
         const question = `? ${op} ${factor} = ${resultStr}`;
         const answer = startStr;
         questionEl.textContent = question;
@@ -357,6 +570,9 @@
         questionEl.textContent = question;
         answerEl.textContent = answer;
       }
+
+      // Show starting number on slider (visual only)
+      updatePlaceValueSlider(currentProblem.start, false, 0);
 
       // Hide answer on new problem
       answerEl.classList.add("hidden");
@@ -373,7 +589,19 @@
 
     function toggleAnswer() {
       if (!currentProblem) return;
+
+      const wasHidden = answerEl.classList.contains("hidden");
       answerEl.classList.toggle("hidden");
+
+      // When revealing, animate slider so digits slide into new place
+      if (wasHidden) {
+        let places = 1;
+        if (currentProblem.factor === 100) places = 2;
+        else if (currentProblem.factor === 1000) places = 3;
+
+        const exponentShift = currentProblem.isMultiply ? places : -places;
+        updatePlaceValueSlider(currentProblem.result, true, exponentShift);
+      }
     }
 
     // ---------- Event listeners ----------
@@ -401,6 +629,9 @@
         toggleAnswer();
       }
     });
+
+    // Initialise mini slider once DOM is ready
+    initPlaceValueSlider();
   </script>
 </body>
 </html>
