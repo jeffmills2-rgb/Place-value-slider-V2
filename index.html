@@ -692,10 +692,12 @@
         <div id="equivalenceBox" class="hidden" aria-live="polite"></div>
       </div>
 
-      <div class="bottom-controls">
-        <button id="flashCardBtn" type="button">Class flash card activity</button>
-        <button id="mysteryBtn" type="button">Practice lab</button>
-      </div>
+     <div class="bottom-controls">
+  <button id="flashCardBtn" type="button">Class flash card activity</button>
+  <button id="studentFlashBtn" type="button">Student flash card activity</button>
+  <button id="mysteryBtn" type="button">Practice lab</button>
+</div>
+
 
       <!-- Practice lab panel (unchanged from your original file) -->
       <!-- everything below here is exactly what you already had -->
@@ -844,6 +846,7 @@
 
     const mysteryBtn        = document.getElementById("mysteryBtn");
     const flashCardBtn      = document.getElementById("flashCardBtn"); // NEW
+    const studentFlashBtn   = document.getElementById("studentFlashBtn"); // NEW
     const mysteryPanel      = document.getElementById("mysteryPanel");
     const mysteryFinalValue = document.getElementById("mysteryFinalValue");
     const mysteryOperations = document.getElementById("mysteryOperations");
@@ -1982,6 +1985,11 @@
       // change filename here if your flash-card file has a different name
       window.location.href = "flash-cards.html";
     });
+// NEW: go to the student flash-card practice page
+studentFlashBtn.addEventListener("click", () => {
+  window.location.href = "student-flash.html";
+});
+
 
     levelButtons.forEach(btn => {
       btn.addEventListener("click", () => {
